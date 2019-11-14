@@ -14,8 +14,8 @@ var ctx = c.getContext("2d");
 var walkerImage = new Image();
 walkerImage.src = "sprites/Walker.png";
 
-var runnerImage = new Image();
-runnerImage.src = "sprites/Runner.png";
+var standerImage = new Image();
+standerImage.src = "sprites/Stander.png";
 
 var range = function(low, high) {
     var thisRange = [];
@@ -50,9 +50,10 @@ var allowPassing;
 var laneRestrictions;
 var calculatedTotalArrivals;
 var newWalkerCount;
-var newRunnerCount;
+var newStanderCount;
 var allTimes = 0;
-var maxWalkerSpeed = 0.75;
+var randomSpeeds = "Default";
+var maxStanderSpeed = 0.45;
 var escalatorLength = 350;
 
 var pedestrians = []; //Active pedestrians
@@ -113,6 +114,9 @@ var Pedestrian = function(x, y, speed, id, type, timeStart) {
     this.timeStart = timeStart;
     this.timeAlive = 0;
     this.type = type;
+    this.speed = speed;
+    //console.log(speed);
+    //if (type == "Stander") { speed = escalatorSpeed; }
     if (laneRestrictions == "Default") { // Lane based on speed
       if (x == rightLaneX) {
         this.side = "Right";
@@ -128,13 +132,13 @@ var Pedestrian = function(x, y, speed, id, type, timeStart) {
     } else { // 50/50 Random
       if (Math.random() >= 0.5) {
         x = leftLaneX;
-        this.side = "Left";
+        this.side = "Right";
       } else {
         x = rightLaneX;
-        this.side = "Right";
+        this.side = "Left";
       }
     }
-	  //this.side = (x === leftLaneX) ? "Left" : "Right";
+
     this.pos = {x: x, y: y};
 	  this.size = {x: spriteSize, y: spriteSize};
     this.blocked = 0;
@@ -143,11 +147,11 @@ var Pedestrian = function(x, y, speed, id, type, timeStart) {
     this.actualSpeed = speed;
     this.passSpeed = 0; //Passing speed (may not be active)
     this.xSpeed = 0; //Actual speed along x axis
-    //console.log(speed);
-    if (speed > maxWalkerSpeed) {
-      this.img = runnerImage;
-    } else {
+    
+    if (speed > escalatorSpeed) {
       this.img = walkerImage;
+    } else {
+      this.img = standerImage;
     }
 
 	  this.walk = function() {
@@ -240,6 +244,7 @@ function updateTable(pedestrian) {
   var cell5 = row.insertCell(4);
 
   cell1.innerHTML = pedestrian.id;
+  if (pedestrian.type == "Stander") { pedestrian.actualSpeed = escalatorSpeed; }
   cell2.innerHTML = pedestrian.actualSpeed.toFixed(2);
   cell3.innerHTML = pedestrian.type;
   cell4.innerHTML = pedestrian.side;
@@ -249,6 +254,7 @@ function updateTable(pedestrian) {
 }
 
 var getSpeed = function() {
+  /*
     speedCategory = chooseRand(1, 6);
     if (speedCategory === 1) {
             return 0.1 + escalatorSpeed;
@@ -257,6 +263,22 @@ var getSpeed = function() {
     } else {
             return (0.4 + (Math.random() * 0.4)) + escalatorSpeed;
     }
+    */
+    var min = 0.5,
+    max = 1.4,
+    randomSpeed = (Math.random() * (max - min) + min).toFixed(2)
+    finalSpeed = parseInt(escalatorSpeed) + randomSpeed;
+    
+    // round to 2 decimals
+    finalSpeed = Math.round(finalSpeed * 100) / 100;
+
+    if (Math.random() >= 0.5) {
+      //console.log(randomSpeed);
+      return finalSpeed;
+    } else {
+      //console.log("Walker");
+      return escalatorSpeed;
+    }
 }
 
 var generatePedestrian = function() {
@@ -264,27 +286,21 @@ var generatePedestrian = function() {
     var good2go = false;
     timeStart = Date.now();
     type = null;
-    //x = ((Math.random() * 2) < 1) ? leftLaneX : rightLaneX;
     y = startingY;
     speed = getSpeed();
-    /*if (newWalkerCount == 0) {
-      speed = speed - 0.25;
-    } else if (newRunnerCount == 0) {
-      speed = speed + 0.25;
-    }*/
-    if (speed > maxWalkerSpeed) {
-        if (newRunnerCount > 0) {
+    //console.log(speed);
+    if (speed > maxStanderSpeed) {
+        if (newWalkerCount > 0) {
           x = leftLaneX;
-          type = "Runner";
-          newRunnerCount = newRunnerCount - 1;
-          //console.log("runner count: " + newRunnerCount);
+          type = "Walker";
+          newWalkerCount = newWalkerCount - 1;
           good2go = true;
         }
     } else {
-      if (newWalkerCount > 0) {
+      if (newStanderCount > 0) {
         x = rightLaneX;
-        type = "Walker";
-        newWalkerCount = newWalkerCount - 1;
+        type = "Stander";
+        newStanderCount = newStanderCount - 1;
         //console.log("walker count: " + newWalkerCount);
         good2go = true;
       }
@@ -292,6 +308,8 @@ var generatePedestrian = function() {
     var startingLeftBox = getRect(x, startingY, 0.1);
     var startingRightBox = getRect(x, startingY - 8, 0.1);
     id = makeID();
+
+    console.log(speed + " - " + id);
 
     if (!checkBox(startingLeftBox, 0.1)) {
       //console.log("Value: " + good2go)
@@ -356,8 +374,8 @@ function main() {
     var radios1 = document.getElementsByName("passing");
     var radios2 = document.getElementsByName("laneSet");
     var walkerCount = document.getElementById("walkers"); walkerCount.disabled = true;
-    var runnerCount = document.getElementById("runners"); runnerCount.disabled = true;
-    calculatedTotalArrivals = parseInt(walkerCount.value) + parseInt(runnerCount.value);
+    var standerCount = document.getElementById("standers"); standerCount.disabled = true;
+    calculatedTotalArrivals = parseInt(walkerCount.value) + parseInt(standerCount.value);
 
     for (var i = 0, length = radios1.length; i < length; i++) {
       radios1[i].disabled = true;
@@ -388,7 +406,7 @@ function main() {
 
     render();
 
-    if ((newWalkerCount > 0) || (newRunnerCount > 0)) {
+    if ((newWalkerCount > 0) || (newStanderCount > 0)) {
       //console.log("still within!")
         if (rollAgainst(3)) {
           generatePedestrian();
@@ -403,7 +421,7 @@ function start() {
   startTrial = Date.now();
   simStarted = true;
   newWalkerCount = document.getElementById("walkers").value;
-  newRunnerCount = document.getElementById("runners").value;
+  newStanderCount = document.getElementById("standers").value;
   escalatorLength = document.getElementById("length").value;
   document.getElementById("screen").height = escalatorLength;
   startingY = escalatorLength - 10;
@@ -421,7 +439,7 @@ function reset() {
   clearScreen(ctx);
   var length = document.getElementById("length"); length.disabled = false;
   var walkerCount = document.getElementById("walkers"); walkerCount.disabled = false;
-  var runnerCount = document.getElementById("runners"); runnerCount.disabled = false;
+  var standerCount = document.getElementById("standers"); standerCount.disabled = false;
   var radios1 = document.getElementsByName("passing");
   for (var i = 0, length = radios1.length; i < length; i++) { radios1[i].disabled = false; }
   var radios2 = document.getElementsByName("laneSet");

@@ -6,10 +6,10 @@
 <body>
 	<h1>Escalator Simulation</h1>
 	<div class="wrapper" style="position: relative;">
-		<canvas id="screen" height="350" width="100"></canvas>
+		<canvas id="screen" height="400" width="100"></canvas>
 		<div class="stats" style="position: absolute; top:-25; left:150;">
 			<h2>Statistics</h2>
-			<span>Escalator Length: <input id="length" type="number" min="50" placeholder="350" required></span>
+			<span>Escalator Length: <input id="length" type="number" min="50" placeholder="400" required></span>
 			<p>Arrivals:
 				<span id="arrivals">0</span>
 				<span> (</span>
@@ -38,8 +38,8 @@
 					 <input type="radio" name="laneSet" value="None" />
 				</label>
 			</p>
+			<p>Standers: <input id="standers" type="number" min="0" placeholder="50" required></p>
 			<p>Walkers: <input id="walkers" type="number" min="0" placeholder="50" required></p>
-			<p>Runners: <input id="runners" type="number" min="0" placeholder="50" required></p>
 			<p>Total Time:
 				<span id="ttm">0</span>
 				<span> minutes and </span>
