@@ -47,6 +47,7 @@ var rightLaneX = 50;
 var escalatorSpeed = 0.45;
 var arrivals = 0;
 var allowPassing;
+var laneRestrictions;
 var calculatedTotalArrivals;
 var newWalkerCount;
 var newRunnerCount;
@@ -112,10 +113,26 @@ var Pedestrian = function(x, y, speed, id, type, timeStart) {
     this.timeStart = timeStart;
     this.timeAlive = 0;
     this.type = type;
-    if (x == rightLaneX) {
-      this.side = "Right";
-    } else {
+    if (laneRestrictions == "Default") { // Lane based on speed
+      if (x == rightLaneX) {
+        this.side = "Right";
+      } else {
+        this.side = "Left";
+      }
+    } else if (laneRestrictions == "Left") { // Left lane only
+      x = leftLaneX;
       this.side = "Left";
+    } else if (laneRestrictions == "Right") { // Right lane only
+      x = rightLaneX;
+      this.side = "Right";
+    } else { // 50/50 Random
+      if (Math.random() >= 0.5) {
+        x = leftLaneX;
+        this.side = "Left";
+      } else {
+        x = rightLaneX;
+        this.side = "Right";
+      }
     }
 	  //this.side = (x === leftLaneX) ? "Left" : "Right";
     this.pos = {x: x, y: y};
@@ -336,19 +353,31 @@ var render = function() {
 
 function main() {
     var length = document.getElementById("length"); length.disabled = true;
-    var radios = document.getElementsByName("passing");
+    var radios1 = document.getElementsByName("passing");
+    var radios2 = document.getElementsByName("laneSet");
     var walkerCount = document.getElementById("walkers"); walkerCount.disabled = true;
     var runnerCount = document.getElementById("runners"); runnerCount.disabled = true;
     calculatedTotalArrivals = parseInt(walkerCount.value) + parseInt(runnerCount.value);
 
-    for (var i = 0, length = radios.length; i < length; i++) {
-      radios[i].disabled = true;
-      if (radios[i].checked) {
-        if (radios[i].value == "true"){
+    for (var i = 0, length = radios1.length; i < length; i++) {
+      radios1[i].disabled = true;
+      if (radios1[i].checked) {
+        if (radios1[i].value == "true"){
           allowPassing = true;
+          break;
         } else {
           allowPassing = false;
+          break;
         }
+      }
+    }
+
+    for (var i = 0, length = radios2.length; i < length; i++) {
+      radios2[i].disabled = true;
+      if (radios2[i].checked) {
+        laneRestrictions = radios2[i].value;
+        //console.log(laneRestrictions);
+        break;
       }
     }
 
@@ -391,10 +420,12 @@ function reset() {
   waitingLine = [];
   clearScreen(ctx);
   var length = document.getElementById("length"); length.disabled = false;
-  var radios = document.getElementsByName("passing");
   var walkerCount = document.getElementById("walkers"); walkerCount.disabled = false;
   var runnerCount = document.getElementById("runners"); runnerCount.disabled = false;
-  for (var i = 0, length = radios.length; i < length; i++) { radios[i].disabled = false; }
+  var radios1 = document.getElementsByName("passing");
+  for (var i = 0, length = radios1.length; i < length; i++) { radios1[i].disabled = false; }
+  var radios2 = document.getElementsByName("laneSet");
+  for (var i = 0, length = radios2.length; i < length; i++) { radios2[i].disabled = false; }
   var tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
   var btn1 = document.getElementById("startbtn");
