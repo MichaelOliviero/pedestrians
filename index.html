@@ -1,15 +1,62 @@
 <html>
 <head>
-	<title>Pedestrians!</title>
-	<link type="text/css" rel="stylesheet" href="css/style.css"></link>	
+	<title>Escalator Simulator</title>
+	<link type="text/css" rel="stylesheet" href="css/style.css"></link>
 </head>
 <body>
-	<h1>PEDESTRIANS!</h1>
-	<br>
-	<br>
-	<canvas id="screen" height="1000" width="1000"></canvas>
-
-    <script src="js/jquery-1.10.2.min.js"></script>
+	<h1>Escalator Simulation</h1>
+	<div class="wrapper" style="position: relative;">
+		<canvas id="screen" height="350" width="100"></canvas>
+		<div class="stats" style="position: absolute; top:-25; left:150;">
+			<h2>Statistics</h2>
+			<span>Escalator Length: <input id="length" type="number" min="50" placeholder="350" required></span>
+			<p>Arrivals:
+				<span id="arrivals">0</span>
+				<span> (</span>
+				<span id="aps">0.00</span>
+				<span> arrivals per sec )</span>
+			</p>
+			<p>Allow Passing:
+				<label>No
+				   <input type="radio" name="passing" value="false" checked="checked"/>
+				</label>
+				<label>Yes
+				   <input type="radio" name="passing" value="true" />
+				</label>
+			</p>
+			<p>Walkers: <input id="walkers" type="number" min="0" placeholder="50" required></p>
+			<p>Runners: <input id="runners" type="number" min="0" placeholder="50" required></p>
+			<p>Total Time:
+				<span id="ttm">0</span>
+				<span> minutes and </span>
+				<span id="tts">0</span>
+				<span> seconds</span>
+			</p>
+			<p>Average Time:
+			<span id="at">0</span>
+			<span> seconds</span>
+			</p>
+			<button id="startbtn" onclick="start()">Start</button>
+			<button id="resetbtn" disabled="true" onclick="reset()">Reset</button>
+		</div>
+	</div>
+</br>
+	<div>
+		<table id="pedestrianTable" style="width:100%">
+			<thead>
+				<tr>
+					<th>ID:</th>
+					<th>Speed (m/s):</th>
+					<th>Type:</th>
+					<th>Lane:</th>
+					<th>Time to Finish(s):</th>
+				</tr>
+		</thead>
+		<tbody id="tbody">
+		</tbody>
+		</table>
+	</div>
+  <script src="js/jquery-1.10.2.min.js"></script>
 	<script src="js/pedestrians.js"></script>
 </body>
 </html>

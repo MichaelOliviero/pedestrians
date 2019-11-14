@@ -1,6 +1,4 @@
-pedestrians
-===========
+Escalator Simulation
+====================
 
-Simulation of pedestrian traffic on people movers/escalators.  
-
-Working on genetic algorithm for developing optimal social rules.  
+COMP3301 - Simulation of people on escalators.

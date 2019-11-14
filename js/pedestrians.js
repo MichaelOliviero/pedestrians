@@ -1,12 +1,21 @@
 //
-// PEDESTRIANS - Simulating social rules
+// Escalator Simulator
+// All Credits To: https://github.com/jtfmumm/pedestrians
+// By: Michael Oliviero
 //
 
+
+var requestAnimationFrame = window.requestAnimationFrame;
+var cancelAnimationFrame = window.cancelAnimationFrame;
+var myReq;
 var c = document.getElementById("screen");
 var ctx = c.getContext("2d");
 
 var walkerImage = new Image();
-walkerImage.src = "sprites/pedestrian.png";
+walkerImage.src = "sprites/Walker.png";
+
+var runnerImage = new Image();
+runnerImage.src = "sprites/Runner.png";
 
 var range = function(low, high) {
     var thisRange = [];
@@ -27,26 +36,35 @@ var makeCounter = function() {
     }
 }
 
+var simStarted = false;
+var startTrial;
 var makeID = makeCounter();
 
 var spriteSize = 16;
 var startingY = 340;
-var leftLaneX = 160;
-var rightLaneX = 177;
-var arrivals = 0; //Number of pedestrians having made it to the train
+var leftLaneX = 30;
+var rightLaneX = 50;
+var escalatorSpeed = 0.45;
+var arrivals = 0;
+var allowPassing;
+var calculatedTotalArrivals;
+var newWalkerCount;
+var newRunnerCount;
+var allTimes = 0;
+var maxWalkerSpeed = 0.75;
+var escalatorLength = 350;
 
 var pedestrians = []; //Active pedestrians
 var waitingLine = []; //Pedestrians waiting to start
 
-
-var clearScreen = function() {
-    ctx.clearRect(0, 0, 1000, 1000);
+function clearScreen(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 
 var getRect = function(x, y, xSide, ySide) {
     var rect = {pos: {x: x, y: y},
                 size: {x: xSide, y: ySide}};
-    return rect;   
+    return rect;
 }
 
 var getBox = function(x, y, side) {
@@ -63,10 +81,10 @@ var isColliding = function(pedestrianA, pedestrianB) {
 var checkBox = function(box, id) {
     for (i = 0; i < pedestrians.length; i++) {
         if (isColliding(box, pedestrians[i])) {
-            if (pedestrians[i].id !== id) { return pedestrians[i].actualSpeed; }           
+            if (pedestrians[i].id !== id) { return pedestrians[i].actualSpeed; }
         }
     }
-    return false;   
+    return false;
 }
 
 var checkFront = function(x, y, id) {
@@ -84,44 +102,58 @@ var openPass = function(x, pedestrian) {
 }
 
 var getOppositeX = function(side) {
-    if (side === "right") {
+    if (side === "Right") {
         return leftLaneX;
     } else { return rightLaneX; }
 }
 
-var Pedestrian = function(x, y, speed, id) {
+var Pedestrian = function(x, y, speed, id, type, timeStart) {
     this.id = id;
-	this.side = (x === leftLaneX) ? "left" : "right";
+    this.timeStart = timeStart;
+    this.timeAlive = 0;
+    this.type = type;
+    if (x == rightLaneX) {
+      this.side = "Right";
+    } else {
+      this.side = "Left";
+    }
+	  //this.side = (x === leftLaneX) ? "Left" : "Right";
     this.pos = {x: x, y: y};
-	this.size = {x: spriteSize, y: spriteSize};
+	  this.size = {x: spriteSize, y: spriteSize};
     this.blocked = 0;
     this.passing = 0;
     this.desiredSpeed = speed;
     this.actualSpeed = speed;
     this.passSpeed = 0; //Passing speed (may not be active)
     this.xSpeed = 0; //Actual speed along x axis
-	this.img = walkerImage;
-	this.walk = function() {
+    //console.log(speed);
+    if (speed > maxWalkerSpeed) {
+      this.img = runnerImage;
+    } else {
+      this.img = walkerImage;
+    }
+
+	  this.walk = function() {
 		this.pos.y = this.pos.y - this.actualSpeed;
         this.pos.x = this.pos.x - this.xSpeed;
-	}
+	  }
     this.draw = function() {
         ctx.drawImage(this.img, this.pos.x, this.pos.y);
     }
     this.checkZone = function() {
         var newSpeed = checkFront(this.pos.x, this.pos.y, this.id);
-        if (newSpeed) { 
+        if (newSpeed) {
             this.blocked = 1;
-            this.actualSpeed = Math.min(newSpeed - 0.02, this.actualSpeed); 
+            this.actualSpeed = Math.min(newSpeed - 0.02, this.actualSpeed);
         } else if (this.blocked === 1) {
-            this.blocked = 0;  
-            this.actualSpeed = this.desiredSpeed; 
+            this.blocked = 0;
+            this.actualSpeed = this.desiredSpeed;
         }
     }
     this.pass = function() {
         if (this.blocked === 1 && this.desiredSpeed >= 0.2) {
             if (openPass(getOppositeX(this.side), this)) {
-                this.passSpeed = (this.side === "right") ? this.actualSpeed : (0 - this.actualSpeed);
+                this.passSpeed = (this.side === "Right") ? this.actualSpeed : (0 - this.actualSpeed);
                 this.xSpeed = this.passSpeed;
                 this.passing = 1;
                 this.walk();
@@ -133,7 +165,7 @@ var Pedestrian = function(x, y, speed, id) {
             var newSpeed = checkFront(this.pos.x, this.pos.y, this.id);
             if (newSpeed) {
                 this.xSpeed = 0;
-                this.actualSpeed = newSpeed - 0.02; 
+                this.actualSpeed = newSpeed - 0.02;
             }
 
             if (this.pos.x < leftLaneX) {
@@ -142,15 +174,15 @@ var Pedestrian = function(x, y, speed, id) {
                 this.pos.x = leftLaneX;
                 this.actualSpeed = this.desiredSpeed;
                 this.passing = 0;
-                this.side = "left";
+                this.side = "Left";
             } else if (this.pos.x > rightLaneX) {
                 this.passSpeed = 0;
                 this.xSpeed = 0;
                 this.pos.x = rightLaneX;
-                this.actualSpeed = this.desiredSpeed; 
+                this.actualSpeed = this.desiredSpeed;
                 this.passing = 0;
-                this.side = "right";  
-            }            
+                this.side = "Right";
+            }
         }
     }
     this.look = function() {
@@ -158,51 +190,105 @@ var Pedestrian = function(x, y, speed, id) {
             if (checkFront(rightLaneX, this.pos.y, this.id)) {
                 this.passSpeed = Math.abs(this.passSpeed);
                 this.xSpeed = this.passSpeed;
-                this.side = "left";
+                this.side = "Left";
             } else if (checkFront(leftLaneX, this.pos.y, this.id)) {
                 this.passSpeed = 0 - (Math.abs(this.passSpeed));
                 this.xSpeed = this.passSpeed;
-                this.side = "right";
+                this.side = "Right";
             }
         }
     }
     this.checkArrive = function() {
-        if (this.pos.y < -18) { 
-            arrivals++; 
-            console.log(arrivals + " have made it so far!");
+        if (this.pos.y < -18) {
+            var elapsed1 = Date.now() - this.timeStart;
+            var minutes1 = Math.floor(elapsed1 / 60000);
+            var seconds1 = Math.floor((elapsed1 - (minutes1 * 60000)) / 1000);
+            this.timeAlive = seconds1;
+            updateTable(this);
+            arrivals++;
         }
     }
+    //updateTable(this);
+}
+
+function updateTable(pedestrian) {
+  var table = document.getElementById("tbody");
+
+  var row = table.insertRow();
+
+  var cell1 = row.insertCell(0);
+  var cell2 = row.insertCell(1);
+  var cell3 = row.insertCell(2);
+  var cell4 = row.insertCell(3);
+  var cell5 = row.insertCell(4);
+
+  cell1.innerHTML = pedestrian.id;
+  cell2.innerHTML = pedestrian.actualSpeed.toFixed(2);
+  cell3.innerHTML = pedestrian.type;
+  cell4.innerHTML = pedestrian.side;
+  allTimes += pedestrian.timeAlive;
+  cell5.innerHTML = pedestrian.timeAlive;
+  //console.log(pedestrian);
 }
 
 var getSpeed = function() {
-    speedCategory = chooseRand(1, 7);
+    speedCategory = chooseRand(1, 6);
     if (speedCategory === 1) {
-            return 0.1;
+            return 0.1 + escalatorSpeed;
     } else if (speedCategory > 1 && speedCategory < 5) {
-            return (0.2 + (Math.random() * 0.2));
+            return (0.2 + (Math.random() * 0.2)) + escalatorSpeed;
     } else {
-            return (0.4 + (Math.random() * 0.4));
+            return (0.4 + (Math.random() * 0.4)) + escalatorSpeed;
     }
 }
 
 var generatePedestrian = function() {
-    var x, y, speed, id;
-    x = ((Math.random() * 2) < 1) ? leftLaneX : rightLaneX;
+    var x, y, speed, id, type, timeStart;
+    var good2go = false;
+    timeStart = Date.now();
+    type = null;
+    //x = ((Math.random() * 2) < 1) ? leftLaneX : rightLaneX;
     y = startingY;
     speed = getSpeed();
-    if (speed < 0.2) {
+    /*if (newWalkerCount == 0) {
+      speed = speed - 0.25;
+    } else if (newRunnerCount == 0) {
+      speed = speed + 0.25;
+    }*/
+    if (speed > maxWalkerSpeed) {
+        if (newRunnerCount > 0) {
+          x = leftLaneX;
+          type = "Runner";
+          newRunnerCount = newRunnerCount - 1;
+          //console.log("runner count: " + newRunnerCount);
+          good2go = true;
+        }
+    } else {
+      if (newWalkerCount > 0) {
         x = rightLaneX;
+        type = "Walker";
+        newWalkerCount = newWalkerCount - 1;
+        //console.log("walker count: " + newWalkerCount);
+        good2go = true;
+      }
     }
     var startingLeftBox = getRect(x, startingY, 0.1);
     var startingRightBox = getRect(x, startingY - 8, 0.1);
     id = makeID();
-    console.log(id);
-    if (!checkBox(startingLeftBox, 0.1)) { //&& (!checkBox(startingRightBox, 0.1))) {
-        pedestrians.push(new Pedestrian(x, y, speed, id));
-    }
-    else {
-        waitingLine.push(new Pedestrian(x, y, speed, id));
-        console.log("Waiting!");
+
+    if (!checkBox(startingLeftBox, 0.1)) {
+      //console.log("Value: " + good2go)
+      if (good2go && type != null) {
+        pedestrians.push(new Pedestrian(x, y, speed, id, type, timeStart));
+        good2go = false;
+      } else {
+        generatePedestrian();
+      }
+    } else {
+      if (type != null){
+        waitingLine.push(new Pedestrian(x, y, speed, id, type, timeStart));
+        good2go = false;
+      }
     }
 }
 
@@ -217,12 +303,12 @@ var nextInLine = function() {
 
 var drawLanes = function() {
     ctx.beginPath();
-    ctx.moveTo(193,350);
-    ctx.lineTo(193,50);
-    ctx.stroke();    
+    ctx.moveTo(70,escalatorLength);
+    ctx.lineTo(70,0);
+    ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(160,350);
-    ctx.lineTo(160,50);
+    ctx.moveTo(28,escalatorLength);
+    ctx.lineTo(28,0);
     ctx.stroke();
 }
 
@@ -235,9 +321,11 @@ var render = function() {
     for (var i = 0; i < pedestrians.length; i++) {
         if (pedestrians[i].pos.y > -18) {
             pedestrians[i].checkZone();
-            pedestrians[i].pass();
-            pedestrians[i].look();
-            pedestrians[i].endPass();
+            if (allowPassing) {
+              pedestrians[i].pass();
+              pedestrians[i].look();
+              pedestrians[i].endPass();
+            }
             pedestrians[i].walk();
             pedestrians[i].draw();
             pedestrians[i].checkArrive();
@@ -246,31 +334,96 @@ var render = function() {
     drawLanes();
 }
 
-// The main game loop
-var lastTime;
-var startTrial = Date.now();
 function main() {
-    var now = Date.now();
-    var dt = (now - lastTime) / 1000.0;
+    var length = document.getElementById("length"); length.disabled = true;
+    var radios = document.getElementsByName("passing");
+    var walkerCount = document.getElementById("walkers"); walkerCount.disabled = true;
+    var runnerCount = document.getElementById("runners"); runnerCount.disabled = true;
+    calculatedTotalArrivals = parseInt(walkerCount.value) + parseInt(runnerCount.value);
 
-    // update(dt);
+    for (var i = 0, length = radios.length; i < length; i++) {
+      radios[i].disabled = true;
+      if (radios[i].checked) {
+        if (radios[i].value == "true"){
+          allowPassing = true;
+        } else {
+          allowPassing = false;
+        }
+      }
+    }
+
+    var btn1 = document.getElementById("startbtn");
+    btn1.disabled = true;
+    var btn2 = document.getElementById("resetbtn");
+    btn2.disabled = false;
+
     render();
 
-    if (rollAgainst(3)) { generatePedestrian(); }
+    if ((newWalkerCount > 0) || (newRunnerCount > 0)) {
+      //console.log("still within!")
+        if (rollAgainst(3)) {
+          generatePedestrian();
+        }
+    }
     nextInLine();
 
-    lastTime = now;
-
-    if (arrivals < 100) { 
-        requestAnimationFrame(main);
-    } else {
-        var elapsed = Date.now() - startTrial;
-        var minutes = Math.floor(elapsed / 60000);
-        var seconds = Math.floor((elapsed - (minutes * 60000)) / 1000);
-        console.log("The trial took " + minutes + " minutes and " + seconds + " seconds!");
-    }
-};
-
-walkerImage.onload = function() {
-	main();
+    if (arrivals < calculatedTotalArrivals) { myReq = requestAnimationFrame(main); }
 }
+
+function start() {
+  startTrial = Date.now();
+  simStarted = true;
+  newWalkerCount = document.getElementById("walkers").value;
+  newRunnerCount = document.getElementById("runners").value;
+  escalatorLength = document.getElementById("length").value;
+  document.getElementById("screen").height = escalatorLength;
+  startingY = escalatorLength - 10;
+  main();
+  update();
+}
+
+function reset() {
+  cancelAnimationFrame(myReq);
+  simStarted = false;
+  arrivals = 0;
+  allTimes = 0;
+  pedestrians = [];
+  waitingLine = [];
+  clearScreen(ctx);
+  var length = document.getElementById("length"); length.disabled = false;
+  var radios = document.getElementsByName("passing");
+  var walkerCount = document.getElementById("walkers"); walkerCount.disabled = false;
+  var runnerCount = document.getElementById("runners"); runnerCount.disabled = false;
+  for (var i = 0, length = radios.length; i < length; i++) { radios[i].disabled = false; }
+  var tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  var btn1 = document.getElementById("startbtn");
+  btn1.disabled = false;
+  var btn2 = document.getElementById("resetbtn");
+  btn2.disabled = true;
+}
+
+function update() {
+  var arrivalText = document.getElementById("arrivals");
+  var arrivalsPerSecondText = document.getElementById("aps");
+  var totalTimeMinutesText = document.getElementById("ttm");
+  var totalTimeSecondsText = document.getElementById("tts");
+  var avgTimeText = document.getElementById("at");
+  var elapsed = Date.now() - startTrial;
+  var minutes = Math.floor(elapsed / 60000);
+  var seconds = Math.floor((elapsed - (minutes * 60000)) / 1000);
+  var arrialsPerSecondTime = (arrivals / Math.floor(elapsed / 1000)).toFixed(2);
+
+  arrivalText.innerHTML = arrivals + "/" + calculatedTotalArrivals;
+
+  if (arrivals < calculatedTotalArrivals) {
+    totalTimeMinutesText.innerHTML = minutes;
+    totalTimeSecondsText.innerHTML = seconds;
+    arrivalsPerSecondText.innerHTML = arrialsPerSecondTime;
+    avgTimeText.innerHTML = (allTimes/arrivals).toFixed(2);
+  }
+}
+
+window.setInterval(function() {
+  if (simStarted){ update(); }
+}, 1000);
